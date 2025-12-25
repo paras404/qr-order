@@ -8,7 +8,7 @@ export default function Home() {
                     QR Order System
                 </h1>
                 <p className="text-xl text-gray-600">
-                    Restaurant Self-Ordering Made Easy
+                    Sivora
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
