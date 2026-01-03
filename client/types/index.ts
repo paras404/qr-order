@@ -28,6 +28,9 @@ export interface Order {
     total_amount?: number;
     total: number; // Keep for backward compatibility
     status: 'pending' | 'preparing' | 'served' | 'cancelled' | 'completed';
+    order_type?: 'dine_in' | 'takeaway';
+    payment_status?: 'pending' | 'paid';
+    payment_method?: 'cash' | 'card' | 'upi';
     createdAt?: string;
 }
 
