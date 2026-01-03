@@ -4,6 +4,7 @@ import { MenuItem } from '@/types';
 import useCartStore from '@/store/useCartStore';
 import Image from 'next/image';
 import { Plus, Minus } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface MenuCardProps {
     item: MenuItem;
@@ -32,8 +33,14 @@ export default function MenuCard({ item, onClick }: MenuCardProps) {
     };
 
     return (
-        <div
-            className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
+        <motion.div
+            layout
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
+            transition={{ duration: 0.3 }}
+            className="group bg-white rounded-xl shadow-sm border border-red-50 overflow-hidden cursor-pointer transition-shadow h-full flex flex-col"
             onClick={onClick}
         >
             <div className="relative h-48 w-full bg-gray-200">
@@ -57,11 +64,11 @@ export default function MenuCard({ item, onClick }: MenuCardProps) {
                 )}
             </div>
 
-            <div className="p-4">
+            <div className="p-4 flex flex-col flex-grow">
                 <h3 className="font-bold text-lg text-gray-800 mb-1">{item.name}</h3>
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
+                <p className="text-sm text-gray-600 mb-3 line-clamp-2 flex-grow">{item.description}</p>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mt-auto pt-2">
                     <span className="text-xl font-bold text-red-600">₹{item.price}</span>
 
                     {quantity === 0 ? (
@@ -80,8 +87,8 @@ export default function MenuCard({ item, onClick }: MenuCardProps) {
                             >
                                 <Minus size={16} />
                             </button>
-                            <span className="px-3 py-1 bg-red-600 text-white rounded-lg font-semibold min-w-[80px] text-center">
-                                Added ({quantity})
+                            <span className="px-3 py-1 bg-red-600 text-white rounded-lg font-semibold min-w-[30px] text-center">
+                                {quantity}
                             </span>
                             <button
                                 onClick={handleIncrease}
@@ -93,6 +100,6 @@ export default function MenuCard({ item, onClick }: MenuCardProps) {
                     )}
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 }

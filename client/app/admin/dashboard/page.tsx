@@ -11,6 +11,7 @@ const statusColors = {
     preparing: 'bg-blue-100 text-blue-800 border-blue-300',
     served: 'bg-green-100 text-green-800 border-green-300',
     cancelled: 'bg-red-100 text-red-800 border-red-300',
+    completed: 'bg-gray-100 text-gray-800 border-gray-300',
 };
 
 export default function AdminDashboard() {
@@ -57,8 +58,7 @@ export default function AdminDashboard() {
     };
 
     const updateOrderStatus = async (orderId: string, status: string) => {
-        console.log("orderId", orderId);
-        console.log("status", status);
+
 
         try {
             await api.put(`/api/orders/${orderId}`, { status });
@@ -72,7 +72,8 @@ export default function AdminDashboard() {
         }
     };
 
-    const activeOrders = orders.filter((o) => o.status !== 'served' && o.status !== 'cancelled');
+    const activeOrders = orders.filter((o) => o.status !== 'served' && o.status !== 'cancelled' && o.status !== 'completed');
+    // const activeOrders = orders;
 
     return (
         <div className="p-8">
@@ -87,8 +88,23 @@ export default function AdminDashboard() {
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {activeOrders.map((order) => (
-                        <div key={order.id} className="bg-white rounded-lg shadow-md p-6">
-                            <div className="flex justify-between items-start mb-4">
+                        <div key={order.id} className="bg-white rounded-lg shadow-md p-6 relative group">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Are you sure you want to remove this order from the dashboard? (Marks as Completed)')) {
+                                        updateOrderStatus(order.id!, 'completed');
+                                    }
+                                }}
+                                className="absolute top-2 right-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                title="Remove from Dashboard"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                            <div className="flex justify-between items-start mb-4 pr-6">
                                 <div>
                                     <h3 className="font-bold text-lg">Table {order.table_id}</h3>
                                     <p className="text-sm text-gray-500 flex items-center gap-1">
@@ -139,7 +155,7 @@ export default function AdminDashboard() {
                                         Mark Served
                                     </button>
                                 )}
-                                {/* {console.log("order", order)} */}
+
                                 <button
                                     onClick={() => updateOrderStatus(order.id!, 'cancelled')}
                                     className="px-4 py-2 bg-red-100 text-red-600 rounded-lg font-semibold hover:bg-red-200 transition text-sm"

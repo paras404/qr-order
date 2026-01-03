@@ -84,6 +84,18 @@ exports.createOrder = async (req, res) => {
         const io = req.app.get('io');
         io.emit('newOrder', order);
 
+        // Update table status to 'occupied'
+        const { error: tableError } = await supabase
+            .from('tables')
+            .update({ status: 'occupied' })
+            .eq('id', tableId);
+
+        if (tableError) {
+            console.error('Error updating table status:', tableError);
+        } else {
+            io.emit('tableStatusUpdate', { tableId, status: 'occupied' });
+        }
+
         res.status(201).json({
             success: true,
             data: order,
@@ -168,7 +180,7 @@ exports.updateOrderStatus = async (req, res) => {
         const { status } = req.body;
         console.log("Updating order", id, "to status:", status);
 
-        if (!['pending', 'preparing', 'served', 'cancelled'].includes(status)) {
+        if (!['pending', 'preparing', 'served', 'cancelled', 'completed'].includes(status)) {
             return res.status(400).json({ message: 'Invalid status' });
         }
 
@@ -202,6 +214,130 @@ exports.updateOrderStatus = async (req, res) => {
         // }
 
         res.json({ success: true, data: order });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+// Get single order by ID (Public for tracking)
+exports.getOrderById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: order, error } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ message: 'Server error' });
+        }
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        res.json({ success: true, data: order });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+// Get orders by Customer ID (Public for customer history)
+exports.getOrdersByCustomer = async (req, res) => {
+    try {
+        const { customerId } = req.params;
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('customer_id', customerId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ message: 'Server error' });
+        }
+
+        res.json({ success: true, data: orders });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// Get active orders for a table (for Billing)
+exports.getTableActiveOrders = async (req, res) => {
+    try {
+        const { tableId } = req.params;
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('table_id', tableId)
+            .neq('status', 'cancelled')
+            .neq('status', 'completed');
+
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ message: 'Server error' });
+        }
+
+        res.json({ success: true, data: orders });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// Settle table bill (Mark active orders as completed & Free table)
+exports.settleTableBill = async (req, res) => {
+    try {
+        const { tableId } = req.params;
+        const { paymentMethod } = req.body; // 'cash', 'card', 'upi'
+
+        // 1. Get all active orders for this table
+        const { data: activeOrders, error: fetchError } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('table_id', tableId)
+            .neq('status', 'cancelled')
+            .neq('status', 'completed');
+
+        if (fetchError) throw fetchError;
+
+        if (!activeOrders || activeOrders.length === 0) {
+            return res.status(400).json({ message: 'No active orders to settle' });
+        }
+
+        const orderIds = activeOrders.map(o => o.id);
+
+        // 2. Mark orders as completed
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({ status: 'completed' })
+            .in('id', orderIds);
+
+        if (updateError) throw updateError;
+
+        // 3. Update table status to available
+        const { error: tableError } = await supabase
+            .from('tables')
+            .update({ status: 'available' })
+            .eq('id', tableId);
+
+        if (tableError) throw tableError;
+
+        // Emit socket events
+        const io = req.app.get('io');
+        orderIds.forEach(id => {
+            io.emit('orderStatusUpdate', { orderId: id, status: 'completed' });
+        });
+        io.emit('tableStatusUpdate', { tableId, status: 'available' });
+
+        res.json({ success: true, message: 'Table settled successfully' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });

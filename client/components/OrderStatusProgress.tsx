@@ -3,7 +3,7 @@
 import { Clock, ChefHat, CheckCircle, XCircle } from 'lucide-react';
 
 interface OrderStatusProgressProps {
-    status: 'pending' | 'preparing' | 'served' | 'cancelled';
+    status: 'pending' | 'preparing' | 'served' | 'cancelled' | 'completed';
 }
 
 const statusSteps = [
@@ -22,7 +22,10 @@ export default function OrderStatusProgress({ status }: OrderStatusProgressProps
         );
     }
 
-    const currentStepIndex = statusSteps.findIndex(step => step.key === status);
+    let currentStepIndex = statusSteps.findIndex(step => step.key === status);
+    if (status === 'completed') {
+        currentStepIndex = statusSteps.length - 1;
+    }
 
     return (
         <div className="py-4">
@@ -45,8 +48,8 @@ export default function OrderStatusProgress({ status }: OrderStatusProgressProps
                         <div key={step.key} className="flex flex-col items-center flex-1">
                             <div
                                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isCompleted
-                                        ? 'bg-green-500 text-white'
-                                        : 'bg-gray-200 text-gray-400'
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-gray-200 text-gray-400'
                                     } ${isCurrent ? 'ring-4 ring-green-200 scale-110' : ''}`}
                             >
                                 <Icon size={20} />

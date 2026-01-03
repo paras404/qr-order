@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { MenuItem } from '@/types';
 import api from '@/lib/api';
 import { Plus, Edit2, Trash2, X, Search } from 'lucide-react';
+import ConfirmationModal from '@/components/ConfirmationModal';
+import toast from 'react-hot-toast';
 
 export default function AdminMenuPage() {
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -12,9 +14,18 @@ export default function AdminMenuPage() {
     const [showForm, setShowForm] = useState(false);
     const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
 
+    // Delete Modal State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
     // Search and filter states
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
+
+    // Image Upload State
+    const [imageEntryMode, setImageEntryMode] = useState<'url' | 'upload'>('url');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -68,16 +79,51 @@ export default function AdminMenuPage() {
         }
     };
 
+    const uploadImage = async (file: File): Promise<string> => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await api.post('/api/upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        if (response.data.success) {
+            return response.data.url;
+        } else {
+            throw new Error('Upload failed');
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         try {
+            let finalImageUrl = formData.image_url;
+
+            if (imageEntryMode === 'upload' && selectedFile) {
+                setUploading(true);
+                try {
+                    finalImageUrl = await uploadImage(selectedFile);
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    alert('Image upload failed. Please try again.');
+                    setUploading(false);
+                    return;
+                }
+                setUploading(false);
+            }
+
+            const payload = {
+                ...formData,
+                image_url: finalImageUrl,
+                price: parseFloat(formData.price),
+            };
+
             if (editingItem) {
                 // Update
-                const response = await api.put(`/api/menu/${editingItem.id}`, {
-                    ...formData,
-                    price: parseFloat(formData.price),
-                });
+                const response = await api.put(`/api/menu/${editingItem.id}`, payload);
                 if (response.data.success) {
                     setMenuItems((prev) =>
                         prev.map((item) =>
@@ -87,19 +133,19 @@ export default function AdminMenuPage() {
                 }
             } else {
                 // Create
-                const response = await api.post('/api/menu', {
-                    ...formData,
-                    price: parseFloat(formData.price),
-                });
+                const response = await api.post('/api/menu', payload);
                 if (response.data.success) {
                     setMenuItems((prev) => [...prev, response.data.data]);
                 }
             }
 
             resetForm();
+            toast.success(editingItem ? 'Menu item updated successfully' : 'Menu item created successfully');
         } catch (error) {
             console.error('Error saving menu item:', error);
-            alert('Failed to save menu item');
+            toast.error('Failed to save menu item');
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -113,18 +159,25 @@ export default function AdminMenuPage() {
             image_url: item.image_url,
             is_available: item.is_available,
         });
+        setImageEntryMode('url');
         setShowForm(true);
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this item?')) return;
+    const handleDeleteClick = (id: string) => {
+        setItemToDelete(id);
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
 
         try {
-            await api.delete(`/api/menu/${id}`);
-            setMenuItems((prev) => prev.filter((item) => item.id !== id));
+            await api.delete(`/api/menu/${itemToDelete}`);
+            setMenuItems((prev) => prev.filter((item) => item.id !== itemToDelete));
+            toast.success('Menu item deleted successfully');
         } catch (error) {
             console.error('Error deleting menu item:', error);
-            alert('Failed to delete menu item');
+            toast.error('Failed to delete menu item');
         }
     };
 
@@ -138,6 +191,8 @@ export default function AdminMenuPage() {
             is_available: true,
         });
         setEditingItem(null);
+        setSelectedFile(null);
+        setImageEntryMode('url');
         setShowForm(false);
     };
 
@@ -252,14 +307,44 @@ export default function AdminMenuPage() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold mb-1">Image URL</label>
-                                <input
-                                    type="text"
-                                    value={formData.image_url}
-                                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                                    className="w-full px-3 py-2 border rounded-lg"
-                                    placeholder="https://..."
-                                />
+                                <label className="block text-sm font-semibold mb-1">Image Source</label>
+                                <div className="flex gap-4 mb-2">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            checked={imageEntryMode === 'url'}
+                                            onChange={() => setImageEntryMode('url')}
+                                            className="text-red-600 focus:ring-red-500"
+                                        />
+                                        <span className="text-sm">Paste URL</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            checked={imageEntryMode === 'upload'}
+                                            onChange={() => setImageEntryMode('upload')}
+                                            className="text-red-600 focus:ring-red-500"
+                                        />
+                                        <span className="text-sm">Upload Image</span>
+                                    </label>
+                                </div>
+
+                                {imageEntryMode === 'url' ? (
+                                    <input
+                                        type="text"
+                                        value={formData.image_url}
+                                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                        placeholder="https://..."
+                                    />
+                                ) : (
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                    />
+                                )}
                             </div>
 
                             <div className="flex items-center gap-2">
@@ -278,9 +363,10 @@ export default function AdminMenuPage() {
                             <div className="flex gap-2">
                                 <button
                                     type="submit"
-                                    className="flex-1 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
+                                    disabled={uploading}
+                                    className="flex-1 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:bg-gray-400"
                                 >
-                                    {editingItem ? 'Update' : 'Create'}
+                                    {uploading ? 'Uploading...' : editingItem ? 'Update' : 'Create'}
                                 </button>
                                 <button
                                     type="button"
@@ -341,7 +427,7 @@ export default function AdminMenuPage() {
                                             <Edit2 size={18} />
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(item.id)}
+                                            onClick={() => handleDeleteClick(item.id)}
                                             className="text-red-600 hover:text-red-800"
                                         >
                                             <Trash2 size={18} />
@@ -353,6 +439,16 @@ export default function AdminMenuPage() {
                     </table>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Menu Item"
+                message="Are you sure you want to delete this menu item? This action cannot be undone."
+                confirmText="Delete"
+                isDangerous={true}
+            />
         </div>
     );
 }

@@ -16,6 +16,7 @@ const statusColors = {
     preparing: 'bg-blue-100 text-blue-800 border-blue-300',
     served: 'bg-green-100 text-green-800 border-green-300',
     cancelled: 'bg-red-100 text-red-800 border-red-300',
+    completed: 'bg-gray-100 text-gray-800 border-gray-300',
 };
 
 export default function CustomerOrdersPage() {
@@ -54,17 +55,10 @@ export default function CustomerOrdersPage() {
     const fetchOrders = async (custId: string) => {
         setLoading(true);
         try {
-            const response = await api.get('/api/orders');
+            const response = await api.get(`/api/orders/customer/${custId}`);
 
             if (response.data.success) {
-                // Filter orders by customer ID
-                const customerOrders = response.data.data.filter(
-                    (order: Order) => order.customer_id === custId
-                );
-                console.log(customerOrders, "customerOrders")
-                setOrders(customerOrders.sort((a: Order, b: Order) =>
-                    new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-                ));
+                setOrders(response.data.data);
             }
         } catch (error) {
             console.error('Error fetching orders:', error);

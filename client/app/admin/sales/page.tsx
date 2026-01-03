@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { DollarSign, TrendingUp, Calendar, ShoppingCart } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface SalesData {
     total: number;
@@ -46,6 +47,7 @@ export default function SalesPage() {
             if (yearRes.data.success) setYearSales(yearRes.data.data);
         } catch (error) {
             console.error('Error fetching sales data:', error);
+            toast.error('Failed to fetch sales data');
         } finally {
             setLoading(false);
         }
@@ -53,7 +55,7 @@ export default function SalesPage() {
 
     const fetchCustomRange = async () => {
         if (!startDate || !endDate) {
-            alert('Please select both start and end dates');
+            toast.error('Please select both start and end dates');
             return;
         }
 
@@ -64,6 +66,7 @@ export default function SalesPage() {
             }
         } catch (error) {
             console.error('Error fetching custom range:', error);
+            toast.error('Failed to fetch custom sales data');
         }
     };
 

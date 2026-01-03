@@ -46,6 +46,10 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/admin/sales', salesRoutes);
 app.use('/api/tables', tableRoutes);
 app.use('/api/kitchen', kitchenRoutes);
+app.use('/api/upload', require('./routes/uploadRoutes'));
+
+// Serve uploaded files statically
+app.use('/uploads', express.static('uploads'));
 
 // Basic Route
 app.get('/', (req, res) => {
