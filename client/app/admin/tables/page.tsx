@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { Table } from '@/types';
 import api from '@/lib/api';
 import { Plus, Edit2, Trash2, X, Download, QrCode } from 'lucide-react';
+import ConfirmationModal from '@/components/ConfirmationModal';
+import BillingModal from '@/components/BillingModal';
+import toast from 'react-hot-toast';
 
 const statusColors = {
     available: 'bg-green-100 text-green-800',
@@ -18,6 +21,14 @@ export default function TablesPage() {
     const [showForm, setShowForm] = useState(false);
     const [editingTable, setEditingTable] = useState<Table | null>(null);
     const [selectedQR, setSelectedQR] = useState<{ url: string; tableName: string } | null>(null);
+
+    // Delete Modal State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [tableToDelete, setTableToDelete] = useState<string | null>(null);
+
+    // Billing Modal State
+    const [billingModalOpen, setBillingModalOpen] = useState(false);
+    const [billingTable, setBillingTable] = useState<{ id: string; name: string } | null>(null);
 
     const [formData, setFormData] = useState({
         table_number: '',
@@ -39,6 +50,7 @@ export default function TablesPage() {
             }
         } catch (error) {
             console.error('Error fetching tables:', error);
+            toast.error('Failed to fetch tables');
         } finally {
             setLoading(false);
         }
@@ -59,6 +71,7 @@ export default function TablesPage() {
                             table.id === editingTable.id ? response.data.data : table
                         )
                     );
+                    toast.success('Table updated successfully');
                 }
             } else {
                 const response = await api.post('/api/tables', {
@@ -67,12 +80,13 @@ export default function TablesPage() {
                 });
                 if (response.data.success) {
                     setTables((prev) => [...prev, response.data.data]);
+                    toast.success('Table created successfully');
                 }
             }
             resetForm();
         } catch (error) {
             console.error('Error saving table:', error);
-            alert('Failed to save table');
+            toast.error('Failed to save table');
         }
     };
 
@@ -87,15 +101,21 @@ export default function TablesPage() {
         setShowForm(true);
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this table?')) return;
+    const handleDeleteClick = (id: string) => {
+        setTableToDelete(id);
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!tableToDelete) return;
 
         try {
-            await api.delete(`/api/tables/${id}`);
-            setTables((prev) => prev.filter((table) => table.id !== id));
+            await api.delete(`/api/tables/${tableToDelete}`);
+            setTables((prev) => prev.filter((table) => table.id !== tableToDelete));
+            toast.success('Table deleted successfully');
         } catch (error) {
             console.error('Error deleting table:', error);
-            alert('Failed to delete table');
+            toast.error('Failed to delete table');
         }
     };
 
@@ -108,11 +128,11 @@ export default function TablesPage() {
                         table.id === id ? response.data.data : table
                     )
                 );
-                alert('QR Code regenerated successfully');
+                toast.success('QR Code regenerated successfully');
             }
         } catch (error) {
             console.error('Error regenerating QR:', error);
-            alert('Failed to regenerate QR code');
+            toast.error('Failed to regenerate QR code');
         }
     };
 
@@ -132,6 +152,15 @@ export default function TablesPage() {
         });
         setEditingTable(null);
         setShowForm(false);
+    };
+
+    const handleSettleClick = (table: Table) => {
+        setBillingTable({ id: table.id, name: table.table_number });
+        setBillingModalOpen(true);
+    };
+
+    const handleBillSettled = () => {
+        fetchTables(); // Refresh tables to show as available
     };
 
     return (
@@ -261,60 +290,92 @@ export default function TablesPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {tables.map((table) => (
-                        <div key={table.id} className="bg-white rounded-lg shadow-md p-6">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h3 className="text-xl font-bold text-gray-800">{table.table_number}</h3>
-                                    <p className="text-sm text-gray-600">{table.location || 'No location'}</p>
+                        <div key={table.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                            <div className="p-6">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-800">{table.table_number}</h3>
+                                        <p className="text-sm text-gray-600">{table.location || 'No location'}</p>
+                                    </div>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[table.status]}`}>
+                                        {table.status?.toUpperCase()}
+                                    </span>
                                 </div>
-                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[table.status]}`}>
-                                    {table.status.toUpperCase()}
-                                </span>
-                            </div>
 
-                            <div className="mb-4">
-                                <p className="text-sm text-gray-600">Capacity: <span className="font-semibold">{table.capacity} people</span></p>
-                            </div>
-
-                            {table.qr_code_url && (
-                                <div className="mb-4 flex justify-center">
-                                    <img
-                                        src={table.qr_code_url}
-                                        alt="QR Code"
-                                        className="w-32 h-32 border rounded cursor-pointer hover:opacity-80 transition"
-                                        onClick={() => setSelectedQR({ url: table.qr_code_url!, tableName: table.table_number })}
-                                    />
-                                </div>
-                            )}
-
-                            <div className="flex gap-2">
                                 {table.qr_code_url && (
-                                    <button
-                                        onClick={() => setSelectedQR({ url: table.qr_code_url!, tableName: table.table_number })}
-                                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-100 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-200 transition"
-                                    >
-                                        <QrCode size={16} />
-                                        View QR
-                                    </button>
+                                    <div className="mb-4 flex justify-center">
+                                        <img
+                                            src={table.qr_code_url}
+                                            alt="QR Code"
+                                            className="w-32 h-32 border rounded cursor-pointer hover:opacity-80 transition"
+                                            onClick={() => setSelectedQR({ url: table.qr_code_url!, tableName: table.table_number })}
+                                        />
+                                    </div>
                                 )}
-                                <button
-                                    onClick={() => handleEdit(table)}
-                                    className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition"
-                                >
-                                    <Edit2 size={16} />
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(table.id)}
-                                    className="flex items-center justify-center px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+
+                                <div className="flex flex-col gap-2">
+                                    {table.qr_code_url && (
+                                        <button
+                                            onClick={() => setSelectedQR({ url: table.qr_code_url!, tableName: table.table_number })}
+                                            className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-blue-100 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-200 transition"
+                                        >
+                                            <QrCode size={16} />
+                                            View QR
+                                        </button>
+                                    )}
+                                    {table.status === 'occupied' && (
+                                        <button
+                                            onClick={() => handleSettleClick(table)}
+                                            className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition shadow-sm"
+                                        >
+                                            Settle Bill
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="px-4 py-3 border-t bg-gray-50 flex justify-between items-center">
+                                <span className="text-sm font-medium text-gray-600">
+                                    Capacity: {table.capacity}
+                                </span>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleEdit(table)}
+                                        className="flex items-center justify-center px-3 py-2 bg-blue-100 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-200 transition"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteClick(table.id)}
+                                        className="flex items-center justify-center px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
+            {/* Modals */}
+            <ConfirmationModal
+                isOpen={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Table"
+                message="Are you sure you want to delete this table? This action cannot be undone."
+                confirmText="Delete"
+                isDangerous={true}
+            />
+
+            <BillingModal
+                isOpen={billingModalOpen}
+                onClose={() => setBillingModalOpen(false)}
+                onSuccess={handleBillSettled}
+                tableId={billingTable?.id || null}
+                tableName={billingTable?.name || ''}
+            />
         </div>
     );
 }

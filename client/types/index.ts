@@ -27,7 +27,7 @@ export interface Order {
     tax?: number;
     total_amount?: number;
     total: number; // Keep for backward compatibility
-    status: 'pending' | 'preparing' | 'served' | 'cancelled';
+    status: 'pending' | 'preparing' | 'served' | 'cancelled' | 'completed';
     createdAt?: string;
 }
 

@@ -43,12 +43,9 @@ export default function TrackOrderPage() {
 
     const fetchOrder = async () => {
         try {
-            const response = await api.get(`/api/orders`);
+            const response = await api.get(`/api/orders/${orderId}`);
             if (response.data.success) {
-                const foundOrder = response.data.data.find((o: Order) => o.id === orderId);
-                if (foundOrder) {
-                    setOrder(foundOrder);
-                }
+                setOrder(response.data.data);
             }
         } catch (error) {
             console.error('Error fetching order:', error);

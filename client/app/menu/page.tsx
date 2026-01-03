@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { MenuItem } from '@/types';
@@ -10,10 +10,12 @@ import FloatingCart from '@/components/FloatingCart';
 import ItemDetailsModal from '@/components/ItemDetailsModal';
 import useCartStore from '@/store/useCartStore';
 import { Search } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import MenuSkeleton from '@/components/MenuSkeleton';
 
 const categories = ['All', 'Indian', 'Chinese', 'Italian', 'Beverages', 'Desserts'];
 
-export default function MenuPage() {
+function MenuContent() {
     const searchParams = useSearchParams();
     const tableId = searchParams.get('table_id') || searchParams.get('table') || '1';
     const { initializeCustomerId } = useCartStore();
@@ -65,7 +67,6 @@ export default function MenuPage() {
     const fetchMenu = async () => {
         try {
             const response = await api.get('/api/menu');
-            console.log("response--->", response.data)
             if (response.data.success) {
                 setMenuItems(response.data.data);
                 setFilteredItems(response.data.data);
@@ -118,19 +119,26 @@ export default function MenuPage() {
             {/* Menu Items */}
             <div className="container mx-auto p-6">
                 {loading ? (
-                    <div className="text-center py-12">
-                        <p className="text-gray-500">Loading menu...</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3, 4, 5, 6].map((n) => (
+                            <MenuSkeleton key={n} />
+                        ))}
                     </div>
                 ) : filteredItems.length === 0 ? (
                     <div className="text-center py-12">
                         <p className="text-gray-500">No items available in this category</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredItems.map((item) => (
-                            <MenuCard key={item.id} item={item} onClick={() => handleItemClick(item)} />
-                        ))}
-                    </div>
+                    <motion.div
+                        layout
+                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                    >
+                        <AnimatePresence>
+                            {filteredItems.map((item) => (
+                                <MenuCard key={item.id} item={item} onClick={() => handleItemClick(item)} />
+                            ))}
+                        </AnimatePresence>
+                    </motion.div>
                 )}
 
                 {/* No Search Results */}
@@ -160,5 +168,21 @@ export default function MenuPage() {
                 onClose={() => setIsModalOpen(false)}
             />
         </div>
+    );
+}
+
+export default function MenuPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 w-full max-w-7xl">
+                    {[1, 2, 3].map((n) => (
+                        <MenuSkeleton key={n} />
+                    ))}
+                </div>
+            </div>
+        }>
+            <MenuContent />
+        </Suspense>
     );
 }
