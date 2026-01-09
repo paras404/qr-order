@@ -2,76 +2,94 @@ const supabase = require('../config/supabase');
 const { sendInvoiceEmail } = require('../services/emailService');
 
 // Create new order
+// Create new order
 exports.createOrder = async (req, res) => {
     try {
-        const { tableId, customerId, customerInfo, items, subtotal, serviceCharge, tax, totalAmount, total } = req.body;
-        console.log("Creating order for table:", tableId);
+        const {
+            tableId,
+            customerId,
+            customerInfo,
+            items,
+            subtotal,
+            serviceCharge,
+            tax,
+            totalAmount,
+            total,
+            orderType = 'dine_in', // Default to dine_in
+            paymentStatus = 'pending',
+            paymentMethod
+        } = req.body;
 
-        if (!tableId || !items || items.length === 0) {
+        console.log("Creating order:", { tableId, orderType, paymentStatus });
+
+        if ((orderType === 'dine_in' && !tableId) || !items || items.length === 0) {
             return res.status(400).json({ message: 'Invalid order data' });
         }
 
-        // if (!customerInfo || !customerInfo.phone) {
-        //     return res.status(400).json({ message: 'Customer phone number is required' });
-        // }
-
         // Find or create customer
-        let customer;
-        const { data: existingCustomer } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('phone', customerInfo.phone)
-            .single();
-
-        if (existingCustomer) {
-            // Update existing customer if info changed
-            const { data: updatedCustomer, error: updateError } = await supabase
+        let customer = null;
+        if (customerInfo && customerInfo.phone) {
+            const { data: existingCustomer } = await supabase
                 .from('customers')
-                .update({
-                    name: customerInfo.name || existingCustomer.name,
-                    email: customerInfo.email || existingCustomer.email,
-                })
-                .eq('id', existingCustomer.id)
-                .select()
+                .select('*')
+                .eq('phone', customerInfo.phone)
                 .single();
 
-            if (updateError) {
-                console.error('Error updating customer:', updateError);
-            }
-            customer = updatedCustomer || existingCustomer;
-        } else {
-            // Create new customer
-            const { data: newCustomer, error: createError } = await supabase
-                .from('customers')
-                .insert([{
-                    name: customerInfo.name,
-                    phone: customerInfo.phone,
-                    email: customerInfo.email,
-                }])
-                .select()
-                .single();
+            if (existingCustomer) {
+                // Update existing customer if info changed
+                const { data: updatedCustomer, error: updateError } = await supabase
+                    .from('customers')
+                    .update({
+                        name: customerInfo.name || existingCustomer.name,
+                        email: customerInfo.email || existingCustomer.email,
+                    })
+                    .eq('id', existingCustomer.id)
+                    .select()
+                    .single();
 
-            if (createError) {
-                console.error('Error creating customer:', createError);
-                return res.status(500).json({ message: 'Error creating customer' });
+                if (updateError) {
+                    console.error('Error updating customer:', updateError);
+                }
+                customer = updatedCustomer || existingCustomer;
+            } else {
+                // Create new customer
+                const { data: newCustomer, error: createError } = await supabase
+                    .from('customers')
+                    .insert([{
+                        name: customerInfo.name,
+                        phone: customerInfo.phone,
+                        email: customerInfo.email,
+                    }])
+                    .select()
+                    .single();
+
+                if (createError) {
+                    console.error('Error creating customer:', createError);
+                    return res.status(500).json({ message: 'Error creating customer' });
+                }
+                customer = newCustomer;
             }
-            customer = newCustomer;
         }
 
         // Create order with customer_id and billing info
+        const orderData = {
+            table_id: tableId || null,
+            customer_id: customer ? customer.id : null,
+            items: items,
+            subtotal: subtotal,
+            service_charge: serviceCharge,
+            tax: tax,
+            total_amount: totalAmount,
+            total: totalAmount, // For backward compatibility
+            status: 'pending',
+            order_type: orderType,
+            payment_status: paymentStatus,
+            payment_method: paymentMethod
+        };
+
         const { data: order, error } = await supabase
             .from('orders')
-            .insert([{
-                table_id: tableId,
-                customer_id: customer.id,
-                items: items,
-                subtotal: subtotal,
-                service_charge: serviceCharge,
-                tax: tax,
-                total_amount: totalAmount,
-                total: totalAmount, // For backward compatibility
-                status: 'pending'
-            }])
+            .insert([orderData])
             .select()
             .single();
 
@@ -84,22 +102,24 @@ exports.createOrder = async (req, res) => {
         const io = req.app.get('io');
         io.emit('newOrder', order);
 
-        // Update table status to 'occupied'
-        const { error: tableError } = await supabase
-            .from('tables')
-            .update({ status: 'occupied' })
-            .eq('id', tableId);
+        // Update table status to 'occupied' ONLY if it's a dine-in order with a table
+        if (tableId && orderType === 'dine_in') {
+            const { error: tableError } = await supabase
+                .from('tables')
+                .update({ status: 'occupied' })
+                .eq('id', tableId);
 
-        if (tableError) {
-            console.error('Error updating table status:', tableError);
-        } else {
-            io.emit('tableStatusUpdate', { tableId, status: 'occupied' });
+            if (tableError) {
+                console.error('Error updating table status:', tableError);
+            } else {
+                io.emit('tableStatusUpdate', { tableId, status: 'occupied' });
+            }
         }
 
         res.status(201).json({
             success: true,
             data: order,
-            customerId: customer.id // Return customer ID for localStorage update
+            customerId: customer ? customer.id : null
         });
     } catch (error) {
         console.error('Error in createOrder:', error);

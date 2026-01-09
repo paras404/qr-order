@@ -11,7 +11,7 @@ exports.getSalesToday = async (req, res) => {
         const { data: orders, error } = await supabase
             .from('orders')
             .select('total')
-            .eq('status', 'served')
+            .in('status', ['served', 'completed'])
             .gte('created_at', today)
             .lt('created_at', tomorrowStr);
 
@@ -51,7 +51,7 @@ exports.getSalesMonth = async (req, res) => {
         const { data: orders, error } = await supabase
             .from('orders')
             .select('total')
-            .eq('status', 'served')
+            .in('status', ['served', 'completed'])
             .gte('created_at', startOfMonth)
             .lt('created_at', startOfNextMonth);
 
@@ -86,7 +86,7 @@ exports.getSalesYear = async (req, res) => {
         const { data: orders, error } = await supabase
             .from('orders')
             .select('total')
-            .eq('status', 'served')
+            .in('status', ['served', 'completed'])
             .gte('created_at', startOfYear)
             .lt('created_at', startOfNextYear);
 
@@ -128,7 +128,7 @@ exports.getSalesByDateRange = async (req, res) => {
         const { data: orders, error } = await supabase
             .from('orders')
             .select('total, created_at')
-            .eq('status', 'served')
+            .in('status', ['served', 'completed'])
             .gte('created_at', start)
             .lt('created_at', endDateStr)
             .order('created_at', { ascending: true });

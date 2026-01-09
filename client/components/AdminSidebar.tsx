@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, UtensilsCrossed, ClipboardList, TrendingUp, Grid3x3, ChefHat, LogOut } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, ClipboardList, TrendingUp, Grid3x3, ChefHat, LogOut, ShoppingCart } from 'lucide-react';
 
 export default function AdminSidebar() {
     const pathname = usePathname();
@@ -15,6 +15,7 @@ export default function AdminSidebar() {
     };
 
     const navItems = [
+        { href: '/admin/pos', label: 'New Order', icon: ShoppingCart },
         { href: '/admin/dashboard', label: 'Orders', icon: LayoutDashboard },
         { href: '/admin/menu', label: 'Menu', icon: UtensilsCrossed },
         { href: '/admin/tables', label: 'Tables', icon: Grid3x3 },
