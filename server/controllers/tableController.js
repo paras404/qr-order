@@ -203,7 +203,7 @@ exports.regenerateQRCode = async (req, res) => {
         }
 
         // Generate new QR code
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const frontendUrl = process.env.FRONTEND_URL || 'https://qr-order-client-pi.vercel.app';
         const qrData = `${frontendUrl}/menu?table_id=${table.id}`;
 
         const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
