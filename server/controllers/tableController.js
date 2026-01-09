@@ -86,7 +86,7 @@ exports.createTable = async (req, res) => {
         }
 
         // Generate QR code
-        const frontendUrl = process.env.FRONTEND_URL || 'http://192.168.25.71:3000';
+        const frontendUrl = process.env.FRONTEND_URL || 'https://qr-order-client-pi.vercel.app';
         const qrData = `${frontendUrl}/menu?table_id=${table.id}`;
 
         try {
