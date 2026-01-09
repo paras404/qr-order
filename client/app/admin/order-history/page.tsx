@@ -10,6 +10,7 @@ const statusColors = {
     preparing: 'bg-blue-100 text-blue-800',
     served: 'bg-green-100 text-green-800',
     cancelled: 'bg-red-100 text-red-800',
+    completed: 'bg-gray-100 text-gray-800',
 };
 
 export default function OrderHistoryPage() {
@@ -119,6 +120,7 @@ export default function OrderHistoryPage() {
                             <option value="preparing">Preparing</option>
                             <option value="served">Served</option>
                             <option value="cancelled">Cancelled</option>
+                            <option value="completed">Completed</option>
                         </select>
                     </div>
 
