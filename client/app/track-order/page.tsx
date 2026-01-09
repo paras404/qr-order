@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Order } from '@/types';
 import api from '@/lib/api';
@@ -13,7 +13,7 @@ const statusSteps = [
     { key: 'served', label: 'Served', icon: UtensilsCrossed, color: 'text-purple-600' },
 ];
 
-export default function TrackOrderPage() {
+function TrackOrderContent() {
     const searchParams = useSearchParams();
     const orderId = searchParams.get('orderId');
 
@@ -184,5 +184,13 @@ export default function TrackOrderPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function TrackOrderPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-500">Loading...</p></div>}>
+            <TrackOrderContent />
+        </Suspense>
     );
 }
