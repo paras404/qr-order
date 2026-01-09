@@ -1,15 +1,15 @@
 'use client';
 
+import { Suspense, useState, useEffect } from 'react';
 import useCartStore from '@/store/useCartStore';
 import { X, Minus, Plus, Trash2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import BottomNav from '@/components/BottomNav';
 import BillSummary, { calculateBilling } from '@/components/BillSummary';
 import toast from 'react-hot-toast';
 
-export default function CartPage() {
+function CartPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -181,5 +181,13 @@ export default function CartPage() {
             </div>
             <BottomNav />
         </div>
+    );
+}
+
+export default function CartPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-gray-500">Loading cart...</p></div>}>
+            <CartPageContent />
+        </Suspense>
     );
 }

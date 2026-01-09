@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CustomerInfoForm from '@/components/CustomerInfoForm';
 
-export default function CustomerInfoPage() {
+function CustomerInfoContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [tableId, setTableId] = useState('');
@@ -74,5 +74,13 @@ export default function CustomerInfoPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function CustomerInfoPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-500">Loading...</p></div>}>
+            <CustomerInfoContent />
+        </Suspense>
     );
 }
